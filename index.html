@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Examen</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <main class="formContainer">
+        <header class="card formHeader">
+            <div class="headerColorBar"></div>
+            <input type="text" class="titleInput" placeholder="Titulo del formulario" value="Examen sin Titulo">
+            <textarea class="descriptionInput" placeholder="Descripción del formulario"></textarea>
+
+        </header>
+
+        <section class="card questionCard">
+            <div class="questionHeader">
+                <input type="text" class="questionTitleInput" placeholder="Pregunta" value="Pregunta sin titulo">
+                <select class="questionTypeSelect">
+                    <option value="multiple">Opción Multiple</option>
+                    <option value="corto">Respuesta Corta</option>
+                    <option value="parrafo">Párrafo</option>
+                </select>
+            </div>
+
+            <div class="optionContainer">
+                <div class="optionRow">
+                    <div class="radioCircle"></div>
+                    <input type="text" class="optionInput" value="Opción 1">
+                    <span class="deleteOptionBtn">&#10005;</span>
+                </div>
+
+                <div class="optionRow addOptionRow">
+                    <div class="radioCircle addCircle"></div>
+                    <input type="text" class="optionInput addOptionInput" placeholder="Añadir opción" readonly>
+                </div>
+            </div>
+        </section>
+    </main>
+    <aside class="floatingMenu">
+        <button id="addQuestionBtn" title="Añadir pregunta">
+            <span class="plusIcon">+</span>
+        </button>
+        <!--- Nuevo botón para vista previa-->
+        <button id="previewBtn" title="Vista Previa/Modo estudiante" style="margin-top: 10px;">
+            <span class="plusIcon">👁️</span>
+        </button>
+    </aside>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
