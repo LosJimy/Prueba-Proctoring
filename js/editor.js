@@ -12,9 +12,9 @@ const Editor = (() => {
         return `
             <header class="card formHeader">
                 <div class="headerColorBar"></div>
-                <input type="text" class="titleInput" data-field="title"
+                <input type="text" class="titleInput" data-field="exam-title"
                        placeholder="Título del formulario" value="${esc(state.title)}">
-                <textarea class="descriptionInput" data-field="description"
+                <textarea class="descriptionInput" data-field="exam-description"
                           placeholder="Descripción del formulario">${esc(state.description)}</textarea>
             </header>`;
     }
@@ -63,7 +63,7 @@ const Editor = (() => {
             <section class="card questionCard" data-id="${question.id}" draggable="false">
                 <div class="questionHeader">
                     <span class="questionNumber">${index + 1}</span>
-                    <input type="text" class="questionTitleInput" data-field="title"
+                    <input type="text" class="questionTitleInput" data-field="question-title"
                            placeholder="Pregunta" value="${esc(question.title)}">
                     <select class="questionTypeSelect" data-field="type">
                         ${Object.entries(TYPE_LABELS).map(([value, label]) => `
@@ -157,7 +157,11 @@ const Editor = (() => {
         if (!question || question.options.length <= 1) return;
         const optionId = row.dataset.option;
         question.options = question.options.filter((o) => o.id !== optionId);
-        if (state.answers[question.id] === optionId) delete state.answers[question.id];
+
+        const remaining = toArray(state.answers[question.id]).filter((id) => id !== optionId);
+        if (remaining.length) state.answers[question.id] = remaining;
+        else delete state.answers[question.id];
+
         App.render();
     }
 
@@ -188,19 +192,37 @@ const Editor = (() => {
         App.render();
     }
 
+    /* Cada input tiene su propio data-field: el titulo del examen y el de cada
+       pregunta comparten el mismo concepto pero no el mismo destino, y antes de
+       separarlos escribir en uno pisaba silenciosamente al otro. */
     function onInput(event) {
         const target = event.target;
         const field = target.dataset.field;
 
-        if (field === 'title' || field === 'description') {
-            state[field] = target.value;
+        if (field === 'exam-title') {
+            state.title = target.value;
+            return;
+        }
+
+        if (field === 'exam-description') {
+            state.description = target.value;
+            return;
+        }
+
+        if (field === 'question-title') {
+            const card = target.closest('.questionCard');
+            const question = card ? getQuestion(card.dataset.id) : null;
+            if (question) question.title = target.value;
             return;
         }
 
         const optionId = target.dataset.optionInput;
         if (!optionId) return;
 
-        const question = getQuestion(target.closest('.questionCard').dataset.id);
+        const card = target.closest('.questionCard');
+        const question = card ? getQuestion(card.dataset.id) : null;
+        if (!question) return;
+
         const option = question.options.find((o) => o.id === optionId);
         if (option) option.text = target.value;
     }
@@ -211,6 +233,20 @@ const Editor = (() => {
 
         const question = getQuestion(target.closest('.questionCard').dataset.id);
         if (!question || question.type === target.value) return;
+
+        /* Cambiar de tipo descarta las alternativas. Solo se avisa si hay algo
+           real que perder: los textos "Opción N" que pone newQuestion() son
+           relleno automatico, no trabajo del docente. */
+        const AUTO_LABEL = /^Opción \d+$/;
+        const hasContent = question.options.some((o) =>
+            o.correct || (o.text.trim() && !AUTO_LABEL.test(o.text.trim())));
+
+        if (hasContent && !confirm(
+            `Cambiar a "${TYPE_LABELS[target.value]}" borra las alternativas y sus marcas de correctas. ¿Continuar?`
+        )) {
+            App.render();   // revierte el valor visual del select
+            return;
+        }
 
         question.type = target.value;
         question.options = target.value === 'multiple'
@@ -262,7 +298,13 @@ const Editor = (() => {
         if (!card || !dragId || card.dataset.id === dragId) return onDragEnd();
 
         const from = questionIndex(dragId);
+        // Un dragId viejo (arrastre perdido, re-render en medio) daria -1 y
+        // splice(-1, 1) se llevaria la ultima pregunta por error.
+        if (from < 0) return onDragEnd();
+
         let to = questionIndex(card.dataset.id);
+        if (to < 0) return onDragEnd();
+
         const [question] = state.questions.splice(from, 1);
         if (from < to) to -= 1;   // las de atrás ya corrieron un lugar
         state.questions.splice(to, 0, question);

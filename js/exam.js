@@ -27,10 +27,16 @@ const Exam = (() => {
 
     function renderAnswerArea(question) {
         if (question.type === 'multiple') {
-            return `<div class="optionContainer">${question.options.map((option) => `
-                <div class="optionRow selectable ${state.answers[question.id] === option.id ? 'selected' : ''}"
-                     data-option="${option.id}">
-                    <div class="radioCircle"></div>
+            const selected = new Set(toArray(state.answers[question.id]));
+            const multi = isMultiSelect(question);
+
+            return `<div class="optionContainer" role="${multi ? 'group' : 'radiogroup'}">${question.options.map((option) => `
+                <div class="optionRow selectable ${multi ? 'multi' : 'single'} ${selected.has(option.id) ? 'selected' : ''}"
+                     data-option="${option.id}"
+                     role="${multi ? 'checkbox' : 'radio'}"
+                     aria-checked="${selected.has(option.id)}"
+                     tabindex="0">
+                    <div class="${multi ? 'checkSquare' : 'radioCircle'}"></div>
                     <span class="optionText">${esc(option.text) || '<span class="placeholderText">Alternativa sin texto</span>'}</span>
                 </div>`).join('')}</div>`;
         }
@@ -82,6 +88,13 @@ const Exam = (() => {
     }
 
     function renderForm() {
+        if (!state.questions.length) {
+            return renderHeader() + `
+                <div class="card">
+                    <p class="errorMessage">Este examen todavía no tiene preguntas.</p>
+                </div>`;
+        }
+
         state.page = Math.min(state.page, totalPages() - 1);
         return renderHeader() + renderProgress()
             + renderQuestion(questionsOfPage()[0], state.page * PAGE_SIZE)
@@ -132,6 +145,8 @@ const Exam = (() => {
         // En Estudiante no hay vuelta atras: solo se sale enviando.
         const confirmLabel = isLocked() ? 'Enviar' : 'Finalizar prueba';
         const confirmNav = isLocked() ? 'confirm' : 'exit-prueba';
+        const backBtn = isLocked() ? '' :
+            `<button type="button" class="btn btnGhost" data-nav="back">Volver a editar</button>`;
 
         return `
             ${renderHeader()}
@@ -139,7 +154,7 @@ const Exam = (() => {
                 <h2 class="reviewTitle">Revisa tus respuestas</h2>
                 ${rows}
                 <div class="navButtons">
-                    <button type="button" class="btn btnGhost" data-nav="back">Volver a editar</button>
+                    ${backBtn}
                     <button type="button" class="btn btnPrimary" data-nav="${confirmNav}">${confirmLabel}</button>
                 </div>
             </div>`;
@@ -163,8 +178,8 @@ const Exam = (() => {
                 </div>`;
         }
 
-        const isFull = item.earned >= 1;
-        const isPartial = item.earned > 0 && item.earned < 1;
+        const isFull = item.exact;
+        const isPartial = !isFull && item.earned > 0;
         const mark = isFull ? '✓' : isPartial ? '~' : '✗';
         const tone = isFull ? 'ok' : isPartial ? 'partial' : 'bad';
         const given = answerOf(item.question) || 'Sin responder';
@@ -184,8 +199,9 @@ const Exam = (() => {
     }
 
     function formatCredit(item) {
-        if (item.earned >= 1) return 'Correcta';
-        if (item.earned > 0) return `Parcial: ${Math.round(item.earned * 100)}%`;
+        if (item.exact) return 'Correcta';
+        // floor, no round: un parcial jamas debe mostrarse como 100%.
+        if (item.earned > 0) return `Parcial: ${Math.floor(item.earned * 100)}%`;
         return 'Incorrecta';
     }
 
@@ -240,10 +256,26 @@ const Exam = (() => {
         const row = event.target.closest('.optionRow.selectable');
         if (row) {
             const question = getQuestion(row.closest('.questionCard').dataset.id);
-            state.answers[question.id] = row.dataset.option;
+            state.answers[question.id] = toggleAnswer(
+                question, row.dataset.option, isMultiSelect(question)
+            );
+
             state.invalid.delete(question.id);
+            // Sin esto el re-render se lleva el foco y quien responde con
+            // teclado tendria que volver a la primera alternativa cada vez.
+            state.focusTarget = { kind: 'answerOption', optionId: row.dataset.option };
             App.render();
         }
+    }
+
+    /* Radio reemplaza, checkbox alterna. */
+    function toggleAnswer(question, optionId, multi) {
+        const current = toArray(state.answers[question.id]);
+        if (!multi) return [optionId];
+
+        return current.includes(optionId)
+            ? current.filter((id) => id !== optionId)
+            : [...current, optionId];
     }
 
     function onInput(event) {
@@ -269,6 +301,7 @@ const Exam = (() => {
                 state.stage = 'review';
                 break;
             case 'back':
+                if (isLocked()) return;   // el Estudiante no vuelve atras
                 state.stage = 'form';
                 break;
             case 'confirm':

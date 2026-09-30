@@ -3,6 +3,7 @@
 const App = (() => {
 
     const app = document.getElementById('app');
+    const view = document.getElementById('view');
     const modeBar = document.getElementById('modeBar');
     const addQuestionBtn = document.getElementById('addQuestionBtn');
     const pruebaBtn = modeBar.querySelector('[data-mode="prueba"]');
@@ -13,7 +14,7 @@ const App = (() => {
     }
 
     function render() {
-        app.innerHTML = isEditor() ? Editor.render() : Exam.render();
+        view.innerHTML = isEditor() ? Editor.render() : Exam.render();
 
         document.body.classList.toggle('examMode', !isEditor());
         document.body.classList.toggle('lockedMode', isLocked());
@@ -32,6 +33,10 @@ const App = (() => {
             pruebaBtn.dataset.mode = 'prueba';
         }
 
+        // En Estudiante el boton de Prueba no lleva a ningun lado: se muestra
+        // deshabilitado en vez de ignorar el clic en silencio.
+        pruebaBtn.disabled = isLocked();
+
         pruebaBtn.classList.toggle('active', state.mode === 'prueba');
         estudianteBtn.classList.toggle('active', isLocked());
     }
@@ -43,9 +48,21 @@ const App = (() => {
         if (!target) return;
 
         state.focusTarget = null;
+
+        // preventScroll: focus() a secas hace que el navegador salte a dejar
+        // el elemento visible, y el foco tambien se restaura cuando el click
+        // vino del mouse, donde no queremos ningun salto.
+        // Opcion nueva en el editor: el foco va al input de texto.
         if (target.kind === 'option') {
             const input = document.querySelector(`[data-option-input="${target.optionId}"]`);
-            if (input) input.focus();
+            if (input) input.focus({ preventScroll: true });
+            return;
+        }
+
+        // Alternativa elegida en el examen: la fila es el elemento enfocable.
+        if (target.kind === 'answerOption') {
+            const row = document.querySelector(`.optionRow[data-option="${target.optionId}"]`);
+            if (row) row.focus({ preventScroll: true });
         }
     }
 
@@ -63,6 +80,7 @@ const App = (() => {
             // Volver a edicion o entrar a prueba: se conservan las respuestas.
             state.invalid = new Set();
             state.stage = 'form';
+            state.page = 0;
         }
 
         state.mode = target;
@@ -103,6 +121,17 @@ const App = (() => {
 
         app.addEventListener('change', (event) => {
             if (isEditor()) Editor.onChange(event);
+        });
+
+        // Las opciones son <div>, no botones: sin esto no se puede responder
+        // con teclado, y en un examen online eso deja fuera a algunos alumnos.
+        app.addEventListener('keydown', (event) => {
+            if (isEditor()) return;
+            if (event.key !== 'Enter' && event.key !== ' ') return;
+            if (!event.target.closest('.optionRow.selectable')) return;
+
+            event.preventDefault();
+            Exam.onClick(event);
         });
 
         app.addEventListener('mousedown', Editor.onMouseDown);
