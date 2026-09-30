@@ -104,9 +104,6 @@ const Editor = (() => {
         const index = question ? questionIndex(question.id) : -1;
 
         switch (actionEl.dataset.action) {
-            case 'add-option':
-                addOption(card);
-                break;
             case 'delete-option':
                 deleteOption(question, actionEl.closest('.optionRow'));
                 break;

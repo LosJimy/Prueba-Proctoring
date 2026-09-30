@@ -260,7 +260,7 @@ body {
     margin-top: 20px;
     padding-top: 14px;
     border-top: 1px solid #f1f3f4;
-    opacity: 0.6ya re;
+    opacity: 0.6;
     transition: opacity 0.2s ease;
 }
 
@@ -563,11 +563,6 @@ body {
 .studentMode .titleInput,
 .studentMode .descriptionInput {
     display: none !important;
-}
-
-/* Los optionInput de respuesta (corto/parrafo) sí deben ser editables. */
-.studentMode .optionRow:not(.selectable) .optionInput {
-    pointer-events: auto;
 }
 
 .studentMode .optionRow.selectable {
