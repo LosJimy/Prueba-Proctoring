@@ -1,22 +1,42 @@
-/* Coordina el render global y los dos modos. */
+/* Coordina el render, la barra de modos y el bloqueo del modo Estudiante. */
 
 const App = (() => {
 
     const app = document.getElementById('app');
+    const modeBar = document.getElementById('modeBar');
     const addQuestionBtn = document.getElementById('addQuestionBtn');
-    const previewBtn = document.getElementById('previewBtn');
+    const pruebaBtn = modeBar.querySelector('[data-mode="prueba"]');
+    const estudianteBtn = modeBar.querySelector('[data-mode="estudiante"]');
 
-    function isStudentView() {
-        return state.view !== 'editor';
+    function isEditor() {
+        return state.mode === 'editor';
     }
 
     function render() {
-        app.innerHTML = isStudentView() ? Student.render() : Editor.render();
-        document.body.classList.toggle('studentMode', isStudentView());
+        app.innerHTML = isEditor() ? Editor.render() : Exam.render();
+
+        document.body.classList.toggle('examMode', !isEditor());
+        document.body.classList.toggle('lockedMode', isLocked());
+
+        syncModeBar();
         applyFocus();
     }
 
-    /* El re-render completo borra el foco, así que lo devolvemos
+    function syncModeBar() {
+        // En Prueba el mismo boton sirve para volver a edicion.
+        if (state.mode === 'prueba') {
+            pruebaBtn.textContent = '✏️ Volver';
+            pruebaBtn.dataset.mode = 'editor';
+        } else {
+            pruebaBtn.textContent = '🧪 Prueba';
+            pruebaBtn.dataset.mode = 'prueba';
+        }
+
+        pruebaBtn.classList.toggle('active', state.mode === 'prueba');
+        estudianteBtn.classList.toggle('active', isLocked());
+    }
+
+    /* El re-render completo borra el foco, asi que lo devolvemos
        cuando el motivo del render fue "acaba de agregar algo". */
     function applyFocus() {
         const target = state.focusTarget;
@@ -29,52 +49,60 @@ const App = (() => {
         }
     }
 
+    function setMode(target) {
+        // Cinturon de seguridad: desde Estudiante no se sale por la barra.
+        if (isLocked() && target !== 'estudiante') return;
+
+        if (target === 'estudiante') {
+            if (hasAnswers() && !confirm('Se borrarán las respuestas actuales. ¿Comenzar de nuevo?')) return;
+            state.answers = {};
+            state.invalid = new Set();
+            state.page = 0;
+            state.stage = 'start';
+        } else {
+            // Volver a edicion o entrar a prueba: se conservan las respuestas.
+            state.invalid = new Set();
+            state.stage = 'form';
+        }
+
+        state.mode = target;
+        render();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
     function addQuestion() {
-        const question = newQuestion('multiple');
-        state.questions.push(question);
+        state.questions.push(newQuestion('multiple'));
         render();
     }
 
-    function toggleMode() {
-        if (isStudentView()) {
-            state.view = 'editor';
-            state.invalid = new Set();
-        } else {
-            state.view = 'student';
-            state.page = 0;
-            state.invalid = new Set();
-        }
-
-        previewBtn.innerHTML = isStudentView()
-            ? '<span class="menuIcon">✏️</span>'
-            : '<span class="menuIcon">👁️</span>';
-        previewBtn.title = isStudentView() ? 'Volver a edición' : 'Vista previa / Modo estudiante';
-
-        render();
+    /* El navegador muestra su propio aviso, no se puede personalizar el texto.
+       Sirve para evitar cierres accidentales, no para alguien decidido a salir. */
+    function onBeforeUnload(event) {
+        if (!isInProgress()) return;
+        event.preventDefault();
+        event.returnValue = '';
     }
 
     function init() {
         addQuestionBtn.addEventListener('click', addQuestion);
-        previewBtn.addEventListener('click', toggleMode);
+
+        modeBar.addEventListener('click', (event) => {
+            const btn = event.target.closest('[data-mode]');
+            if (btn) setMode(btn.dataset.mode);
+        });
 
         app.addEventListener('click', (event) => {
-            if (isStudentView()) {
-                Student.onClick(event);
-            } else {
-                Editor.onClick(event);
-            }
+            if (isEditor()) Editor.onClick(event);
+            else Exam.onClick(event);
         });
 
         app.addEventListener('input', (event) => {
-            if (isStudentView()) {
-                Student.onInput(event);
-            } else {
-                Editor.onInput(event);
-            }
+            if (isEditor()) Editor.onInput(event);
+            else Exam.onInput(event);
         });
 
         app.addEventListener('change', (event) => {
-            if (!isStudentView()) Editor.onChange(event);
+            if (isEditor()) Editor.onChange(event);
         });
 
         app.addEventListener('mousedown', Editor.onMouseDown);
@@ -83,10 +111,12 @@ const App = (() => {
         app.addEventListener('drop', Editor.onDrop);
         app.addEventListener('dragend', Editor.onDragEnd);
 
+        window.addEventListener('beforeunload', onBeforeUnload);
+
         render();
     }
 
-    return { render, init };
+    return { render, setMode, init };
 })();
 
 document.addEventListener('DOMContentLoaded', App.init);

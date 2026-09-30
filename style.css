@@ -7,6 +7,10 @@
     --text-muted: #70757a;
     --border-color: #dadce0;
     --error-color: #d93025;
+    --ok-color: #1e8e3e;
+    --ok-bg: #e6f4ea;
+    --warn-color: #b26a00;
+    --warn-bg: #fef7e0;
 }
 
 * {
@@ -471,27 +475,222 @@ body {
     word-break: break-word;
 }
 
-.doneCard {
-    text-align: center;
-    padding: 40px 24px;
+/* ---------- barra de modos ---------- */
+
+.modeBar {
+    position: fixed;
+    top: 16px;
+    right: 20px;
+    z-index: 10;
+    display: flex;
+    gap: 6px;
+    background-color: #fff;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, .15);
+    padding: 6px;
 }
 
-.doneIcon {
-    width: 64px;
-    height: 64px;
-    margin: 0 auto 20px;
+.modeBtn {
+    font-family: 'Roboto', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    padding: 9px 18px;
+    border: none;
+    border-radius: 4px;
+    background-color: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background-color 0.2s, color 0.2s;
+}
+
+.modeBtn:hover {
+    background-color: #f1f3f4;
+    color: var(--text-main);
+}
+
+.modeBtn.active {
+    background-color: var(--primary-light);
+    color: var(--primary-color);
+}
+
+/* ---------- clave de correccion ---------- */
+
+.correctBtn {
+    flex-shrink: 0;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--border-color);
+}
+
+.correctBtn:hover {
+    color: var(--ok-color);
+    background-color: var(--ok-bg);
+}
+
+.correctBtn.on {
+    background-color: var(--ok-bg);
+    color: var(--ok-color);
+}
+
+.optionRow.isCorrect .optionInput {
+    font-weight: 500;
+    color: var(--ok-color);
+}
+
+.optionRow.isCorrect .radioCircle {
+    border-color: var(--ok-color);
+    background-color: var(--ok-bg);
+}
+
+.keyInfo {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-left: 12px;
+    margin-right: auto;
+}
+
+.keyInfo.warning {
+    color: var(--warn-color);
+    background-color: var(--warn-bg);
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-weight: 500;
+}
+
+/* ---------- inicio del examen ---------- */
+
+.startCard {
+    padding: 32px 28px;
+}
+
+.startInfo {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 14px;
+    color: var(--text-muted);
+    margin-bottom: 24px;
+}
+
+.startInfo strong {
+    color: var(--text-main);
+}
+
+.startWarning {
+    background-color: var(--warn-bg);
+    border-left: 4px solid var(--warn-color);
+    border-radius: 4px;
+    padding: 16px 18px;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.startWarning ul {
+    list-style: disc;
+    padding-left: 20px;
+    margin-top: 8px;
+    color: #5f4a17;
+}
+
+/* ---------- resultado ---------- */
+
+.resultHead {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    padding-bottom: 22px;
+    margin-bottom: 6px;
+    border-bottom: 1px solid #f1f3f4;
+}
+
+.resultScore {
+    flex-shrink: 0;
+    width: 96px;
+    height: 96px;
     border-radius: 50%;
-    background-color: #e6f4ea;
-    color: #1e8e3e;
-    font-size: 32px;
     display: flex;
     align-items: center;
     justify-content: center;
+    font-size: 28px;
+    font-weight: 700;
+    color: #fff;
 }
 
-.doneText {
+.resultScore.ok {
+    background-color: var(--ok-color);
+}
+
+.resultScore.partial {
+    background-color: #f9ab00;
+}
+
+.resultScore.bad {
+    background-color: var(--error-color);
+}
+
+.resultSummary .reviewTitle {
+    margin-bottom: 4px;
+}
+
+.resultRow {
+    display: flex;
+    gap: 14px;
+    padding: 14px 0;
+    border-bottom: 1px solid #f1f3f4;
+}
+
+.resultRow:last-of-type {
+    border-bottom: none;
+}
+
+.resultMark {
+    flex-shrink: 0;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
     font-size: 14px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+}
+
+.resultMark.ok {
+    background-color: var(--ok-color);
+}
+
+.resultMark.partial {
+    background-color: #f9ab00;
+}
+
+.resultMark.bad {
+    background-color: var(--error-color);
+}
+
+.resultMark.pending {
+    background-color: #f1f3f4;
     color: var(--text-muted);
+}
+
+.resultBody {
+    flex-grow: 1;
+}
+
+.resultNote {
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+.resultCredit {
+    display: inline-block;
+    margin-top: 4px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-main);
 }
 
 /* ---------- menu flotante ---------- */
@@ -510,8 +709,7 @@ body {
     gap: 4px;
 }
 
-#addQuestionBtn,
-#previewBtn {
+#addQuestionBtn {
     background-color: transparent;
     border: none;
     border-radius: 50%;
@@ -524,8 +722,7 @@ body {
     transition: background-color 0.2s;
 }
 
-#addQuestionBtn:hover,
-#previewBtn:hover {
+#addQuestionBtn:hover {
     background-color: #f1f3f4;
 }
 
@@ -535,29 +732,22 @@ body {
     line-height: 1;
 }
 
-.menuIcon {
-    font-size: 18px;
-    line-height: 1;
+/* ---------- modos ---------- */
+
+/* En Prueba y Estudiante no se edita, asi que el menu flotante sobra. */
+.examMode .floatingMenu {
+    display: none;
 }
 
-/* ---------- modo estudiante ---------- */
-
-.studentMode .addOptionRow,
-.studentMode .deleteOptionBtn,
-.studentMode .questionTypeSelect,
-.studentMode .questionFooter,
-.studentMode .dragHandle,
-.studentMode #addQuestionBtn {
-    display: none !important;
+/* El modo Estudiante no muestra la barra: no hay forma de cambiar de modo. */
+.lockedMode .modeBar {
+    display: none;
 }
 
-.studentMode .questionTitleInput,
-.studentMode .titleInput,
-.studentMode .descriptionInput {
-    display: none !important;
-}
+/* Las filas seleccionables solo existen en las vistas de examen,
+   asi que no necesitan estar prefijadas con .examMode. */
 
-.studentMode .optionRow.selectable {
+.optionRow.selectable {
     cursor: pointer;
     padding: 8px 10px;
     margin: 0 -10px;
@@ -565,20 +755,20 @@ body {
     transition: background-color 0.15s;
 }
 
-.studentMode .optionRow.selectable:hover {
+.optionRow.selectable:hover {
     background-color: #f8f9fa;
 }
 
-.studentMode .optionRow.selectable.selected {
+.optionRow.selectable.selected {
     background-color: var(--primary-light);
 }
 
-.studentMode .radioCircle.selected {
+.radioCircle.selected {
     border-color: var(--primary-color);
     position: relative;
 }
 
-.studentMode .radioCircle.selected::after {
+.radioCircle.selected::after {
     content: '';
     position: absolute;
     top: 50%;

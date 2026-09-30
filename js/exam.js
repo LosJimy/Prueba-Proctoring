@@ -1,6 +1,8 @@
-/* Modo estudiante: pagina, validacion de preguntas obligatorias y revision despues de responder prueba. */
+/* Modo Prueba y modo Estudiante.
+   Responder y revisar es igual en ambos; lo que cambia es si se valida al
+   avanzar, si hay puntaje, y si se puede salir. */
 
-const Student = (() => {
+const Exam = (() => {
 
     function renderHeader() {
         return `
@@ -29,7 +31,7 @@ const Student = (() => {
                 <div class="optionRow selectable ${state.answers[question.id] === option.id ? 'selected' : ''}"
                      data-option="${option.id}">
                     <div class="radioCircle"></div>
-                    <span class="optionText">${esc(option.text) || '<span class="placeholderText">Opción sin texto</span>'}</span>
+                    <span class="optionText">${esc(option.text) || '<span class="placeholderText">Alternativa sin texto</span>'}</span>
                 </div>`).join('')}</div>`;
         }
 
@@ -79,8 +81,40 @@ const Student = (() => {
             </div>`;
     }
 
-    function render() {
-        return renderHeader() + renderProgress() + renderQuestion(questionsOfPage()[0], state.page * PAGE_SIZE) + renderNav();
+    function renderForm() {
+        state.page = Math.min(state.page, totalPages() - 1);
+        return renderHeader() + renderProgress()
+            + renderQuestion(questionsOfPage()[0], state.page * PAGE_SIZE)
+            + renderNav();
+    }
+
+    /* ---------- pantalla de inicio (solo Estudiante) ---------- */
+
+    function renderStart() {
+        const total = state.questions.length;
+        const evaluable = state.questions.filter(isEvaluable).length;
+
+        return `
+            ${renderHeader()}
+            <div class="card startCard">
+                <h2 class="reviewTitle">${esc(state.title) || 'Examen'}</h2>
+                <ul class="startInfo">
+                    <li><strong>${total}</strong> ${total === 1 ? 'pregunta' : 'preguntas'}, todas obligatorias</li>
+                    <li><strong>${evaluable}</strong> con puntaje automático · el resto lo corrige el docente</li>
+                </ul>
+
+                <div class="startWarning">
+                    <p><strong>Lee antes de empezar.</strong></p>
+                    <ul>
+                        <li>Una vez que envíes tus respuestas no podrás volver atrás.</li>
+                        <li>Si cierras o recargas la pestaña, se pierden las respuestas.</li>
+                    </ul>
+                </div>
+
+                <div class="navButtons center">
+                    <button type="button" class="btn btnPrimary" data-nav="begin">Comenzar examen</button>
+                </div>
+            </div>`;
     }
 
     /* ---------- revision ---------- */
@@ -95,6 +129,10 @@ const Student = (() => {
                 </div>
             </div>`).join('');
 
+        // En Estudiante no hay vuelta atras: solo se sale enviando.
+        const confirmLabel = isLocked() ? 'Enviar' : 'Finalizar prueba';
+        const confirmNav = isLocked() ? 'confirm' : 'exit-prueba';
+
         return `
             ${renderHeader()}
             <div class="card">
@@ -102,28 +140,95 @@ const Student = (() => {
                 ${rows}
                 <div class="navButtons">
                     <button type="button" class="btn btnGhost" data-nav="back">Volver a editar</button>
-                    <button type="button" class="btn btnPrimary" data-nav="confirm">Enviar</button>
+                    <button type="button" class="btn btnPrimary" data-nav="${confirmNav}">${confirmLabel}</button>
                 </div>
             </div>`;
     }
 
-    function renderDone() {
+    /* ---------- resultado (solo Estudiante) ---------- */
+
+    function renderResultRow(item, index) {
+        const number = index + 1;
+        const title = esc(item.question.title) || 'Pregunta sin título';
+
+        if (item.pending) {
+            const note = item.noKey ? 'Sin clave de corrección' : 'Pendiente de corrección docente';
+            return `
+                <div class="resultRow">
+                    <span class="resultMark pending">–</span>
+                    <div class="resultBody">
+                        <p class="reviewQuestion">${number}. ${title}</p>
+                        <p class="resultNote">${note}</p>
+                    </div>
+                </div>`;
+        }
+
+        const isFull = item.earned >= 1;
+        const isPartial = item.earned > 0 && item.earned < 1;
+        const mark = isFull ? '✓' : isPartial ? '~' : '✗';
+        const tone = isFull ? 'ok' : isPartial ? 'partial' : 'bad';
+        const given = answerOf(item.question) || 'Sin responder';
+
+        let credit = `<span class="resultCredit">${formatCredit(item)}</span>`;
+        if (item.correctCount > 1) credit += `<span class="resultNote"> (había ${item.correctCount} correctas)</span>`;
+
+        return `
+            <div class="resultRow">
+                <span class="resultMark ${tone}">${mark}</span>
+                <div class="resultBody">
+                    <p class="reviewQuestion">${number}. ${title}</p>
+                    <p class="reviewAnswer">${esc(given)}</p>
+                    ${credit}
+                </div>
+            </div>`;
+    }
+
+    function formatCredit(item) {
+        if (item.earned >= 1) return 'Correcta';
+        if (item.earned > 0) return `Parcial: ${Math.round(item.earned * 100)}%`;
+        return 'Incorrecta';
+    }
+
+    function renderResult() {
+        const { detail, evaluable, percent } = evaluate();
+        const rounded = Math.round(percent);
+
+        const summary = evaluable.length
+            ? `${rounded}% · ${Math.round(evaluable.reduce((s, d) => s + d.earned, 0) * 10) / 10} de ${evaluable.length} puntos`
+            : 'Sin preguntas con clave de corrección';
+
         return `
             ${renderHeader()}
-            <div class="card doneCard">
-                <div class="doneIcon">✓</div>
-                <h2 class="reviewTitle">Respuestas enviadas</h2>
-                <p class="doneText">Se registraron ${state.questions.length} respuestas para "${esc(state.title)}".</p>
+            <div class="card">
+                <div class="resultHead">
+                    <div class="resultScore ${toneOf(rounded)}">${rounded}%</div>
+                    <div class="resultSummary">
+                        <h2 class="reviewTitle">Resultado</h2>
+                        <p class="resultNote">${summary}</p>
+                    </div>
+                </div>
+
+                ${detail.map(renderResultRow).join('')}
+
                 <div class="navButtons center">
-                    <button type="button" class="btn btnPrimary" data-nav="restart">Intentar de nuevo</button>
+                    <button type="button" class="btn btnPrimary" data-nav="exit-editor">Volver al editor</button>
                 </div>
             </div>`;
     }
 
-    function renderCurrent() {
-        if (state.view === 'review') return renderReview();
-        if (state.view === 'done') return renderDone();
-        return render();
+    function toneOf(percent) {
+        if (percent >= 60) return 'ok';
+        if (percent >= 30) return 'partial';
+        return 'bad';
+    }
+
+    /* ---------- dispatcher ---------- */
+
+    function render() {
+        if (state.stage === 'start') return renderStart();
+        if (state.stage === 'review') return renderReview();
+        if (state.stage === 'result') return renderResult();
+        return renderForm();
     }
 
     /* ---------- eventos ---------- */
@@ -149,47 +254,45 @@ const Student = (() => {
 
     function handleNav(action) {
         switch (action) {
+            case 'begin':
+                state.stage = 'form';
+                break;
             case 'prev':
                 state.page = Math.max(0, state.page - 1);
-                App.render();
                 break;
             case 'next':
                 if (!validatePage()) return;
                 state.page = Math.min(totalPages() - 1, state.page + 1);
-                App.render();
                 break;
             case 'submit':
                 if (!validateAll()) return;
-                state.view = 'review';
-                App.render();
+                state.stage = 'review';
                 break;
             case 'back':
-                state.view = 'student';
-                App.render();
+                state.stage = 'form';
                 break;
             case 'confirm':
-                state.view = 'done';
-                App.render();
+                state.stage = 'result';
                 break;
-            case 'restart':
-                state.answers = {};
+            case 'exit-prueba':
+                App.setMode('editor');
+                return;
+            case 'exit-editor':
+                state.mode = 'editor';
+                state.stage = 'form';
                 state.invalid = new Set();
-                state.page = 0;
-                state.view = 'student';
-                App.render();
                 break;
         }
+        App.render();
     }
 
     function validatePage() {
-        const pageQuestions = questionsOfPage();
-        const missing = pageQuestions.filter((q) => !isAnswered(q));
+        const missing = questionsOfPage().filter((q) => !isAnswered(q));
         missing.forEach((q) => state.invalid.add(q.id));
         if (!missing.length) return true;
 
         App.render();
-        const first = document.querySelector('.questionCard.invalid');
-        if (first) first.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        scrollToInvalid();
         return false;
     }
 
@@ -200,12 +303,16 @@ const Student = (() => {
         // saltar a la primera pagina con errores
         const firstInvalid = state.questions.findIndex((q) => state.invalid.has(q.id));
         state.page = Math.floor(firstInvalid / PAGE_SIZE);
-        state.view = 'student';
+        state.stage = 'form';
         App.render();
-        const first = document.querySelector('.questionCard.invalid');
-        if (first) first.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        scrollToInvalid();
         return false;
     }
 
-    return { render: renderCurrent, onClick, onInput };
+    function scrollToInvalid() {
+        const first = document.querySelector('.questionCard.invalid');
+        if (first) first.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    return { render, onClick, onInput, validatePage, validateAll };
 })();

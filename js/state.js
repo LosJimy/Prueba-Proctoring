@@ -1,20 +1,25 @@
+/* Estado global de la demo.
+   Sin dependencias, sin build step: se abre index.html y funciona.
+   Este objeto es la unica fuente de verdad; el DOM se dibuja a partir de aca. */
+
 const PAGE_SIZE = 1;
 
 const state = {
-    view: 'editor',            // 'editor' | 'student' | 'review' | 'done'
+    mode: 'editor',     // 'editor' | 'prueba' | 'estudiante'  -> quien controla la pantalla
+    stage: 'form',      // 'start' | 'form' | 'review' | 'result' -> donde esta dentro del modo
     page: 0,
     title: 'Examen sin Título',
     description: '',
     questions: [],
-    answers: {},               // questionId -> optionId (multiple) | texto (corto/parrafo)
-    invalid: new Set(),        // questionIds que fallaron la validacion
-    focusTarget: null          // { kind, questionId, optionId } para devolver el foco tras render()
+    answers: {},        // questionId -> optionId (multiple) | texto (corto/parrafo)
+    invalid: new Set(), // questionIds que fallaron la validacion
+    focusTarget: null   // { kind, questionId, optionId } para devolver el foco tras render()
 };
 
 let idSeq = 0;
 const uid = (prefix) => `${prefix}_${++idSeq}`;
 
-const newOption = (text = '') => ({ id: uid('opt'), text });
+const newOption = (text = '', correct = false) => ({ id: uid('opt'), text, correct });
 
 function newQuestion(type = 'multiple') {
     const question = {
@@ -31,25 +36,47 @@ function newQuestion(type = 'multiple') {
     return question;
 }
 
-/* Contenido inicial para que la demo tenga algo que responder. */
+/* Contenido inicial para que la demo tenga algo que responder.
+   Q2 tiene dos correctas a proposito, para probar el puntaje proporcional. */
 function seedQuestions() {
-    const multiple = newQuestion('multiple');
-    multiple.title = 'Cuando aparece por primera vez Noe';
-    multiple.options = [newOption('Genesis'), newOption('Exodo'), newOption('Apocalipsis')];
+    const capital = newQuestion('multiple');
+    capital.title = '¿Cuál es la capital de Chile?';
+    capital.options = [
+        newOption('Santiago', true),
+        newOption('Valparaíso'),
+        newOption('Concepción')
+    ];
+
+    const meses = newQuestion('multiple');
+    meses.title = '¿Cuáles de estos meses tienen 30 días?';
+    meses.options = [
+        newOption('Abril', true),
+        newOption('Junio', true),
+        newOption('Enero'),
+        newOption('Diciembre')
+    ];
 
     const corto = newQuestion('corto');
-    corto.title = 'Que es el antiguo testamento';
+    corto.title = 'Define proctoring en una línea';
 
     const parrafo = newQuestion('parrafo');
-    parrafo.title = 'Que dice Genesis';
+    parrafo.title = 'Describe tu experiencia con sistemas de supervisión en línea';
 
-    state.questions = [multiple, corto, parrafo];
+    state.questions = [capital, meses, corto, parrafo];
 }
 
 /* ---------- helpers ---------- */
 
 const getQuestion = (id) => state.questions.find((q) => q.id === id);
 const questionIndex = (id) => state.questions.findIndex((q) => q.id === id);
+
+/* El modo Estudiante no tiene vuelta atras: solo se sale enviando. */
+const isLocked = () => state.mode === 'estudiante';
+
+/* Tras enviar, el intento ya no está en curso y se puede cerrar la pestaña. */
+const isInProgress = () => isLocked() && state.stage !== 'result';
+
+const hasAnswers = () => Object.keys(state.answers).length > 0;
 
 function totalPages() {
     return Math.max(1, Math.ceil(state.questions.length / PAGE_SIZE));
@@ -77,6 +104,47 @@ function answerOf(question) {
     }
 
     return String(answer);
+}
+
+/* ---------- correccion ---------- */
+
+/* Una pregunta de texto nunca puntua. Una multiple sin clave marcada tampoco:
+   contarla seria castigar al alumno por un error del docente. */
+function isEvaluable(question) {
+    return question.type === 'multiple' && question.options.some((o) => o.correct);
+}
+
+function correctCountOf(question) {
+    return question.options.filter((o) => o.correct).length;
+}
+
+/* Credito proporcional: acertar 1 de 2 correctas da 0,5. */
+function evaluate() {
+    const detail = state.questions.map((question) => {
+        const base = { question, pending: true, noKey: false, earned: 0, correctCount: 0 };
+
+        if (question.type !== 'multiple') return base;
+
+        const correctOptions = question.options.filter((o) => o.correct);
+        if (!correctOptions.length) return { ...base, noKey: true };
+
+        const selected = state.answers[question.id];
+        const hits = correctOptions.filter((o) => o.id === selected).length;
+
+        return {
+            ...base,
+            pending: false,
+            correctCount: correctOptions.length,
+            earned: hits / correctOptions.length,
+            selectedId: selected
+        };
+    });
+
+    const evaluable = detail.filter((d) => !d.pending);
+    const earned = evaluable.reduce((sum, d) => sum + d.earned, 0);
+    const percent = evaluable.length ? (earned / evaluable.length) * 100 : 0;
+
+    return { detail, evaluable, earned, percent };
 }
 
 /* Escapar texto antes de meterlo en HTML. */

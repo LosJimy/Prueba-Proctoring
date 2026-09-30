@@ -1,8 +1,7 @@
-/* Vista de edicion: preguntas obligatorias / agregar / eliminar / duplicar / arrastrar. */
+/* Vista de edicion: crear preguntas, marcar correctas, reordenar, eliminar. */
 
 const Editor = (() => {
 
-    // Tipos de preguntas
     const TYPE_LABELS = {
         multiple: 'Opción Múltiple',
         corto: 'Respuesta Corta',
@@ -20,14 +19,30 @@ const Editor = (() => {
             </header>`;
     }
 
+    /* Como se muestra la clave de una pregunta, en el pie de la tarjeta. */
+    function renderKeyInfo(question) {
+        if (question.type !== 'multiple') {
+            return `<span class="keyInfo">Sin puntaje · texto</span>`;
+        }
+
+        const count = correctCountOf(question);
+        if (!count) {
+            return `<span class="keyInfo warning">⚠ Sin correctas marcadas: no contará en el puntaje</span>`;
+        }
+
+        return `<span class="keyInfo">${count} correcta${count > 1 ? 's' : ''} marcada${count > 1 ? 's' : ''}</span>`;
+    }
+
     function renderOptions(question) {
         const rows = question.options.map((option, i) => `
-            <div class="optionRow" data-option="${option.id}">
+            <div class="optionRow ${option.correct ? 'isCorrect' : ''}" data-option="${option.id}">
                 <div class="radioCircle"></div>
                 <input type="text" class="optionInput" data-option-input="${option.id}"
                        value="${esc(option.text)}" placeholder="Opción ${i + 1}">
+                <button type="button" class="iconBtn correctBtn ${option.correct ? 'on' : ''}"
+                        data-action="toggle-correct" title="Marcar como alternativa correcta">✓</button>
                 <button type="button" class="iconBtn deleteOptionBtn"
-                        data-action="delete-option" title="Eliminar opción">🗑</button>
+                        data-action="delete-option" title="Eliminar alternativa">🗑</button>
             </div>`).join('');
 
         return `
@@ -61,6 +76,7 @@ const Editor = (() => {
 
                 <div class="questionFooter">
                     <span class="requiredBadge">Obligatoria</span>
+                    ${renderKeyInfo(question)}
                     <div class="questionActions">
                         <button type="button" class="iconBtn" data-action="up"
                             title="Subir" ${index === 0 ? 'disabled' : ''}>↑</button>
@@ -78,6 +94,8 @@ const Editor = (() => {
             </section>`;
     }
 
+    /* Invariante: siempre hay al menos 1 pregunta.
+       Lo garantiza deleteQuestion() y el boton 🗑 deshabilitado. */
     function render() {
         return renderHeader() + state.questions.map(renderQuestion).join('');
     }
@@ -99,6 +117,9 @@ const Editor = (() => {
         const index = question ? questionIndex(question.id) : -1;
 
         switch (actionEl.dataset.action) {
+            case 'toggle-correct':
+                toggleCorrect(question, actionEl.closest('.optionRow'));
+                break;
             case 'delete-option':
                 deleteOption(question, actionEl.closest('.optionRow'));
                 break;
@@ -117,6 +138,13 @@ const Editor = (() => {
         }
     }
 
+    function toggleCorrect(question, row) {
+        const option = question.options.find((o) => o.id === row.dataset.option);
+        if (!option) return;
+        option.correct = !option.correct;
+        App.render();
+    }
+
     function addOption(card) {
         const question = getQuestion(card.dataset.id);
         const option = newOption('');
@@ -125,7 +153,6 @@ const Editor = (() => {
         App.render();
     }
 
-    // borrar "alternativa"
     function deleteOption(question, row) {
         if (!question || question.options.length <= 1) return;
         const optionId = row.dataset.option;
@@ -134,7 +161,6 @@ const Editor = (() => {
         App.render();
     }
 
-    // borrar pregunta en si
     function deleteQuestion(index) {
         if (index < 0 || state.questions.length <= 1) return;
         const [removed] = state.questions.splice(index, 1);
@@ -165,8 +191,6 @@ const Editor = (() => {
     function onInput(event) {
         const target = event.target;
         const field = target.dataset.field;
-
-        if (target.id === 'app') return;
 
         if (field === 'title' || field === 'description') {
             state[field] = target.value;
@@ -217,6 +241,11 @@ const Editor = (() => {
     }
 
     function onDragOver(event) {
+        // Sin arrastre en curso no hay nada que insertar. Hace falta el guard
+        // porque este listener esta activo tambien en las vistas de examen,
+        // donde seleccionar y arrastrar texto no debe marcar ninguna tarjeta.
+        if (!dragId) return;
+
         event.preventDefault();
         event.dataTransfer.dropEffect = 'move';
 
@@ -235,7 +264,7 @@ const Editor = (() => {
         const from = questionIndex(dragId);
         let to = questionIndex(card.dataset.id);
         const [question] = state.questions.splice(from, 1);
-        if (from < to) to -= 1;
+        if (from < to) to -= 1;   // las de atrás ya corrieron un lugar
         state.questions.splice(to, 0, question);
 
         onDragEnd();

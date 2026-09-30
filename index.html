@@ -10,20 +10,22 @@
 </head>
 
 <body>
+    <div class="modeBar" id="modeBar">
+        <button type="button" class="modeBtn" data-mode="prueba">🧪 Prueba</button>
+        <button type="button" class="modeBtn" data-mode="estudiante">🎓 Estudiante</button>
+    </div>
+
     <main id="app" class="formContainer"></main>
 
     <aside class="floatingMenu">
         <button id="addQuestionBtn" title="Añadir pregunta">
             <span class="plusIcon">+</span>
         </button>
-        <button id="previewBtn" title="Vista previa / Modo estudiante">
-            <span class="menuIcon">👁️</span>
-        </button>
     </aside>
 
     <script src="js/state.js"></script>
     <script src="js/editor.js"></script>
-    <script src="js/student.js"></script>
+    <script src="js/exam.js"></script>
     <script src="js/app.js"></script>
 </body>
 
