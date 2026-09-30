@@ -1,7 +1,8 @@
-/* Vista de edicion: unanswered preguntas, agregar / eliminar / duplicar / arrastrar. */
+/* Vista de edicion: preguntas obligatorias / agregar / eliminar / duplicar / arrastrar. */
 
 const Editor = (() => {
 
+    // Tipos de preguntas
     const TYPE_LABELS = {
         multiple: 'Opción Múltiple',
         corto: 'Respuesta Corta',
@@ -124,6 +125,7 @@ const Editor = (() => {
         App.render();
     }
 
+    // borrar "alternativa"
     function deleteOption(question, row) {
         if (!question || question.options.length <= 1) return;
         const optionId = row.dataset.option;
@@ -132,6 +134,7 @@ const Editor = (() => {
         App.render();
     }
 
+    // borrar pregunta en si
     function deleteQuestion(index) {
         if (index < 0 || state.questions.length <= 1) return;
         const [removed] = state.questions.splice(index, 1);

@@ -1,4 +1,4 @@
-/* Modo estudiante: paginacion, validacion de obligatorias y revision final. */
+/* Modo estudiante: pagina, validacion de preguntas obligatorias y revision despues de responder prueba. */
 
 const Student = (() => {
 

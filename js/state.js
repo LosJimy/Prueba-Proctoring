@@ -1,7 +1,3 @@
-/* Estado global de la demo.
-   Sin dependencias, sin build step: se abre index.html y funciona.
-   Este objeto es la unica fuente de verdad; el DOM se dibuja a partir de aca. */
-
 const PAGE_SIZE = 1;
 
 const state = {
@@ -38,14 +34,14 @@ function newQuestion(type = 'multiple') {
 /* Contenido inicial para que la demo tenga algo que responder. */
 function seedQuestions() {
     const multiple = newQuestion('multiple');
-    multiple.title = '¿Cuál es la capital de Chile?';
-    multiple.options = [newOption('Santiago'), newOption('Valparaíso'), newOption('Concepción')];
+    multiple.title = 'Cuando aparece por primera vez Noe';
+    multiple.options = [newOption('Genesis'), newOption('Exodo'), newOption('Apocalipsis')];
 
     const corto = newQuestion('corto');
-    corto.title = 'Define proctoring en una línea';
+    corto.title = 'Que es el antiguo testamento';
 
     const parrafo = newQuestion('parrafo');
-    parrafo.title = 'Describe tu experiencia con sistemas de supervisión en línea';
+    parrafo.title = 'Que dice Genesis';
 
     state.questions = [multiple, corto, parrafo];
 }
