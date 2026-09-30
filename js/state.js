@@ -1,6 +1,11 @@
 /* Estado global de la demo.
    Sin dependencias, sin build step: se abre index.html y funciona.
-   Este objeto es la unica fuente de verdad; el DOM se dibuja a partir de aca. */
+   Este objeto es la unica fuente de verdad; el DOM se dibuja a partir de aca.
+
+   OJO: este archivo define los simbolos compartidos (toArray, isMultiSelect,
+   correctOptionsOf, scoreQuestion...) que usan exam.js, editor.js y app.js.
+   Si queda una version vieja en cache mezclada con las nuevas de los otros,
+   todo lo que los use revienta con ReferenceError. Ver el loader de index.html. */
 
 const PAGE_SIZE = 1;
 
@@ -11,7 +16,7 @@ const state = {
     title: 'Examen sin Título',
     description: '',
     questions: [],
-    answers: {},        // questionId -> optionId (multiple) | texto (corto/parrafo)
+    answers: {},        // questionId -> array de optionIds (multiple) | texto (corto/parrafo)
     invalid: new Set(), // questionIds que fallaron la validacion
     focusTarget: null   // { kind, questionId, optionId } para devolver el foco tras render()
 };
@@ -73,10 +78,13 @@ const questionIndex = (id) => state.questions.findIndex((q) => q.id === id);
 /* El modo Estudiante no tiene vuelta atras: solo se sale enviando. */
 const isLocked = () => state.mode === 'estudiante';
 
-/* Tras enviar, el intento ya no está en curso y se puede cerrar la pestaña. */
-const isInProgress = () => isLocked() && state.stage !== 'result';
+/* Solo bloquea el cierre mientras se está respondiendo: en la revision ya no
+   queda nada por decidir, asi que la pestana se puede cerrar. */
+const isInProgress = () => isLocked() && state.stage === 'form';
 
-const hasAnswers = () => Object.keys(state.answers).length > 0;
+/* Cuenta solo respuestas reales. Deseleccionar el ultimo checkbox deja
+   answers[id] = [], que no es una respuesta y no debe contar. */
+const hasAnswers = () => state.questions.some((q) => isAnswered(q));
 
 function totalPages() {
     return Math.max(1, Math.ceil(state.questions.length / PAGE_SIZE));
@@ -87,23 +95,35 @@ function questionsOfPage(page = state.page) {
     return state.questions.slice(start, start + PAGE_SIZE);
 }
 
+/* El valor guardado siempre es un array de optionIds, incluso con una sola
+   correcta. Asi la UI puede alternar entre radio y checkbox sin cambiar el
+   formato de los datos. */
+const toArray = (value) => (Array.isArray(value) ? value : []);
+
+const selectedOptions = (question) => {
+    const ids = new Set(toArray(state.answers[question.id]));
+    return question.options.filter((o) => ids.has(o.id));
+};
+
+const correctOptionsOf = (question) => question.options.filter((o) => o.correct);
+
+/* Con 2+ claves la pregunta admite varias respuestas; con una sola, es radio. */
+const isMultiSelect = (question) =>
+    question.type === 'multiple' && correctOptionsOf(question).length > 1;
+
 function isAnswered(question) {
+    if (question.type === 'multiple') return selectedOptions(question).length > 0;
     const answer = state.answers[question.id];
-    if (answer === undefined || answer === null) return false;
-    if (question.type === 'multiple') return question.options.some((o) => o.id === answer);
-    return String(answer).trim().length > 0;
+    return answer !== undefined && answer !== null && String(answer).trim().length > 0;
 }
 
 function answerOf(question) {
-    const answer = state.answers[question.id];
-    if (answer === undefined) return '';
-
     if (question.type === 'multiple') {
-        const option = question.options.find((o) => o.id === answer);
-        return option ? option.text : '';
+        return selectedOptions(question).map((o) => o.text).join(', ');
     }
 
-    return String(answer);
+    const answer = state.answers[question.id];
+    return answer === undefined ? '' : String(answer);
 }
 
 /* ---------- correccion ---------- */
@@ -111,34 +131,42 @@ function answerOf(question) {
 /* Una pregunta de texto nunca puntua. Una multiple sin clave marcada tampoco:
    contarla seria castigar al alumno por un error del docente. */
 function isEvaluable(question) {
-    return question.type === 'multiple' && question.options.some((o) => o.correct);
+    return question.type === 'multiple' && correctOptionsOf(question).length > 0;
 }
 
-function correctCountOf(question) {
-    return question.options.filter((o) => o.correct).length;
+const correctCountOf = (question) => correctOptionsOf(question).length;
+
+function scoreQuestion(question) {
+    const correct = correctOptionsOf(question);
+    if (!correct.length) {
+        return { pending: true, noKey: true, earned: 0, correctCount: 0, exact: false };
+    }
+
+    const selected = selectedOptions(question);
+    const correctIds = new Set(correct.map((o) => o.id));
+    const hits = selected.filter((o) => correctIds.has(o.id)).length;
+    const wrongPicked = selected.filter((o) => !o.correct).length;
+
+    /* El 100% exige el conjunto exacto: todas las correctas y ninguna de mas.
+       Cada incorrecta descontada resta el mismo tanto que aporta un acierto,
+       asi que marcar de mas nunca puede dejar el puntaje en 1. */
+    const exact = hits === correct.length && wrongPicked === 0;
+    const earned = exact ? 1 : Math.max(0, (hits - wrongPicked) / correct.length);
+
+    return {
+        pending: false,
+        noKey: false,
+        earned,
+        correctCount: correct.length,
+        exact
+    };
 }
 
-/* Credito proporcional: acertar 1 de 2 correctas da 0,5. */
 function evaluate() {
-    const detail = state.questions.map((question) => {
-        const base = { question, pending: true, noKey: false, earned: 0, correctCount: 0 };
-
-        if (question.type !== 'multiple') return base;
-
-        const correctOptions = question.options.filter((o) => o.correct);
-        if (!correctOptions.length) return { ...base, noKey: true };
-
-        const selected = state.answers[question.id];
-        const hits = correctOptions.filter((o) => o.id === selected).length;
-
-        return {
-            ...base,
-            pending: false,
-            correctCount: correctOptions.length,
-            earned: hits / correctOptions.length,
-            selectedId: selected
-        };
-    });
+    const detail = state.questions.map((question) => ({
+        question,
+        ...scoreQuestion(question)
+    }));
 
     const evaluable = detail.filter((d) => !d.pending);
     const earned = evaluable.reduce((sum, d) => sum + d.earned, 0);

@@ -101,7 +101,41 @@ const App = (() => {
         event.returnValue = '';
     }
 
+    /* Si el navegador mezclara una version vieja de state.js con los archivos
+       nuevos, faltan los simbolos compartidos y todo lo que los usa revienta
+       con ReferenceError en un click, lo que se ve como un boton sin efecto.
+       Referenciarlos es la forma barata de detectarlo antes de que toque. */
+    function sharedSymbolsOk() {
+        try {
+            [state, toArray, selectedOptions, correctOptionsOf, isMultiSelect,
+                isAnswered, answerOf, evaluate, scoreQuestion, esc, getQuestion];
+            return true;
+        } catch (e) {
+            return false;
+        }
+    }
+
+    function showFatal(titulo, detalle) {
+        view.innerHTML = `
+            <div class="card">
+                <h2 class="reviewTitle">${titulo}</h2>
+                <p>${detalle}</p>
+                <p><strong>Recargá con Ctrl+Shift+R</strong> para ignorar la caché
+                   y volvé a intentar.</p>
+            </div>`;
+        modeBar.style.display = 'none';
+        addQuestionBtn.style.display = 'none';
+    }
+
     function init() {
+        if (!sharedSymbolsOk()) {
+            return showFatal(
+                'La página quedó con archivos de versiones distintas',
+                'Se cargó una copia vieja de algún archivo .js junto a las nuevas. ' +
+                'Por eso los botones no responden.'
+            );
+        }
+
         addQuestionBtn.addEventListener('click', addQuestion);
 
         modeBar.addEventListener('click', (event) => {

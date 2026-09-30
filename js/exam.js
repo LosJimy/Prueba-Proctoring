@@ -13,24 +13,69 @@ const Exam = (() => {
             </header>`;
     }
 
-    function renderProgress() {
+    /* ---------- barra de progreso ---------- */
+
+    /* La barra mide respuestas, no posicion: con PAGE_SIZE=1, "en que pagina
+       estoy" daba 25% lleno en la primera pregunta sin haber contestado nada,
+       y al navegar hacia atras la barra retrocedia. El texto conserva la
+       posicion, que si es informacion util. */
+    function progressModel() {
         const total = state.questions.length;
-        if (!total) return '';
-        const done = state.page * PAGE_SIZE + 1;
-        const percent = Math.round((done / total) * 100);
+        const answered = state.questions.filter(isAnswered).length;
+
+        return {
+            total,
+            answered,
+            current: state.page * PAGE_SIZE + 1,
+            percent: total ? Math.round((answered / total) * 100) : 0
+        };
+    }
+
+    function progressText(m) {
+        return `Pregunta ${m.current} de ${m.total} · ${m.answered} respondida${m.answered === 1 ? '' : 's'}`;
+    }
+
+    function renderProgress() {
+        const m = progressModel();
+        if (!m.total) return '';
+
         return `
             <div class="progressWrapper">
-                <div class="progressBar"><div class="progressFill" style="width:${percent}%"></div></div>
-                <span class="progressText">Pregunta ${done} de ${total}</span>
+                <div class="progressBar" role="progressbar" aria-valuemin="0" aria-valuemax="${m.total}"
+                     aria-valuenow="${m.answered}" aria-label="Preguntas respondidas">
+                    <div class="progressFill" style="width:${m.percent}%"></div>
+                </div>
+                <span class="progressText">${progressText(m)}</span>
             </div>`;
     }
+
+    /* Escribir en un campo de texto no puede re-dibujar (el input perderia el
+       cursor), asi que la barra se actualiza a mano. Sin esto mostraria el
+       valor del render anterior hasta que el alumno avance de pagina. */
+    function syncProgress() {
+        const bar = document.querySelector('.progressBar');
+        if (!bar) return;
+
+        const m = progressModel();
+        bar.setAttribute('aria-valuenow', String(m.answered));
+
+        const fill = bar.querySelector('.progressFill');
+        if (fill) fill.style.width = `${m.percent}%`;
+
+        const text = document.querySelector('.progressText');
+        if (text) text.textContent = progressText(m);
+    }
+
+    /* ---------- preguntas ---------- */
 
     function renderAnswerArea(question) {
         if (question.type === 'multiple') {
             const selected = new Set(toArray(state.answers[question.id]));
             const multi = isMultiSelect(question);
 
-            return `<div class="optionContainer" role="${multi ? 'group' : 'radiogroup'}">${question.options.map((option) => `
+            return `<div class="optionContainer" role="${multi ? 'group' : 'radiogroup'}"
+                     aria-required="true" aria-labelledby="qtitle-${question.id}">${
+                question.options.map((option) => `
                 <div class="optionRow selectable ${multi ? 'multi' : 'single'} ${selected.has(option.id) ? 'selected' : ''}"
                      data-option="${option.id}"
                      role="${multi ? 'checkbox' : 'radio'}"
@@ -46,7 +91,8 @@ const Exam = (() => {
                 <div class="optionContainer">
                     <div class="optionRow">
                         <input type="text" class="optionInput answerInput" data-answer="${question.id}"
-                               placeholder="Tu respuesta" value="${esc(state.answers[question.id] || '')}">
+                               placeholder="Tu respuesta" required aria-required="true"
+                               value="${esc(state.answers[question.id] || '')}">
                     </div>
                 </div>`;
         }
@@ -55,22 +101,27 @@ const Exam = (() => {
             <div class="optionContainer">
                 <div class="optionRow">
                     <textarea class="optionInput answerTextarea" data-answer="${question.id}"
-                              placeholder="Tu respuesta">${esc(state.answers[question.id] || '')}</textarea>
+                              placeholder="Tu respuesta" required aria-required="true"
+                              >${esc(state.answers[question.id] || '')}</textarea>
                 </div>
             </div>`;
     }
 
+    /* El flag por si solo no alcanza: state.invalid guarda ids y nunca se
+       limpia al responder, asi que una pregunta ya contestada podia volver a
+       pintarse en rojo al navegar de vuelta. Se deriva del estado real. */
     function renderQuestion(question, index) {
-        const invalid = state.invalid.has(question.id);
+        const invalid = state.invalid.has(question.id) && !isAnswered(question);
         return `
-            <section class="card questionCard ${invalid ? 'invalid' : ''}" data-id="${question.id}">
+            <section class="card questionCard ${invalid ? 'invalid' : ''}" data-id="${question.id}"
+                     ${invalid ? 'aria-invalid="true"' : ''}>
                 <div class="questionHeader">
                     <span class="questionNumber">${index + 1}</span>
-                    <h2 class="questionTitleStatic">${esc(question.title) || 'Pregunta sin título'}</h2>
+                    <h2 id="qtitle-${question.id}" class="questionTitleStatic">${esc(question.title) || 'Pregunta sin título'}</h2>
                     <span class="requiredBadge">Obligatoria</span>
                 </div>
                 ${renderAnswerArea(question)}
-                ${invalid ? '<p class="errorMessage">Esta pregunta es obligatoria.</p>' : ''}
+                ${invalid ? '<p class="errorMessage" role="alert">Esta pregunta es obligatoria.</p>' : ''}
             </section>`;
     }
 
@@ -259,7 +310,6 @@ const Exam = (() => {
             state.answers[question.id] = toggleAnswer(
                 question, row.dataset.option, isMultiSelect(question)
             );
-
             state.invalid.delete(question.id);
             // Sin esto el re-render se lleva el foco y quien responde con
             // teclado tendria que volver a la primera alternativa cada vez.
@@ -282,6 +332,20 @@ const Exam = (() => {
         const questionId = event.target.dataset.answer;
         if (!questionId) return;
         state.answers[questionId] = event.target.value;
+        syncProgress();
+
+        /* No se puede re-dibujar aca: el input perderia el cursor mientras se
+           escribe. El error obsoleto se borra a mano del DOM. */
+        if (!state.invalid.has(questionId) || !event.target.value.trim()) return;
+
+        state.invalid.delete(questionId);
+        const card = event.target.closest('.questionCard');
+        if (!card) return;
+
+        card.classList.remove('invalid');
+        card.removeAttribute('aria-invalid');
+        const msg = card.querySelector('.errorMessage');
+        if (msg) msg.remove();
     }
 
     function handleNav(action) {

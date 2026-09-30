@@ -26,13 +26,74 @@
         </button>
     </aside>
 
-    <!-- Sin build step, el navegador cachea los .js y una version vieja de
-         state.js con un exam.js nuevo rompe todo en runtime (toArray undefined).
-         Hay que subir v= a mano cada vez que se toquen los scripts. -->
-    <script src="js/state.js?v=2"></script>
-    <script src="js/editor.js?v=2"></script>
-    <script src="js/exam.js?v=2"></script>
-    <script src="js/app.js?v=2"></script>
+    <!--
+      Los .js se cargan con un timestamp en vez de con <script src> fijo.
+
+      Motivo: sin build step, el navegador cachea los scripts. Una recarga
+      normal puede mezclar un state.js viejo con un exam.js nuevo, y como los
+      simbolos compartidos viven en state.js, todo lo que los usa revienta con
+      "toArray is not a function", lo que se ve como botones que no hacen
+      nada. Poner ?v=2 no alcanza, porque un index.html viejo ni siquiera ve
+      ese query.
+
+      Date.now() fuerza una peticion nueva en cada carga. Los scripts se
+      encadenan por onload para respetar el orden state -> editor -> exam -> app,
+      que es el que necesita App.init().
+    -->
+    <script>
+        (function boot() {
+            var FILES = ['state', 'editor', 'exam', 'app'];
+
+            function fatal(titulo, detalle) {
+                var box = document.createElement('div');
+                box.className = 'card';
+                box.style.margin = '80px auto';
+                box.style.maxWidth = '620px';
+
+                var h = document.createElement('h2');
+                h.textContent = titulo;
+                var p = document.createElement('p');
+                p.textContent = detalle;
+                var r = document.createElement('p');
+                var b = document.createElement('strong');
+                b.textContent = 'Recargá con Ctrl+Shift+R para ignorar la caché';
+                r.appendChild(b);
+                r.appendChild(document.createTextNode(' y volvé a intentar.'));
+
+                box.appendChild(h);
+                box.appendChild(p);
+                box.appendChild(r);
+                (document.getElementById('app') || document.body).appendChild(box);
+            }
+
+            function load(i) {
+                if (i === FILES.length) {
+                    if (typeof App === 'undefined' || typeof App.init !== 'function') {
+                        return fatal('No se pudo inicializar la aplicación',
+                            'js/app.js se cargó pero no definió App.init().');
+                    }
+                    if (document.readyState === 'loading') {
+                        document.addEventListener('DOMContentLoaded', App.init);
+                    } else {
+                        App.init();
+                    }
+                    return;
+                }
+
+                var name = FILES[i];
+                var s = document.createElement('script');
+                s.src = 'js/' + name + '.js?t=' + Date.now();
+                s.onload = function () { load(i + 1); };
+                s.onerror = function () {
+                    fatal('No se pudo cargar ' + name + '.js',
+                        'El archivo js/' + name + '.js no se encontró o no se pudo leer.');
+                };
+                document.head.appendChild(s);
+            }
+
+            load(0);
+        })();
+    </script>
 </body>
 
 </html>

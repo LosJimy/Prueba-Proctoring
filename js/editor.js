@@ -34,6 +34,14 @@ const Editor = (() => {
     }
 
     function renderOptions(question) {
+        /* Con una sola alternativa el boton de borrar no puede hacer nada, asi
+           que se muestra deshabilitado en vez de ignorar el clic en silencio:
+           un boton que no responde sin explicación parece roto. */
+        const canDelete = question.options.length > 1;
+        const deleteTitle = canDelete
+            ? 'Eliminar alternativa'
+            : 'No se puede eliminar la última alternativa';
+
         const rows = question.options.map((option, i) => `
             <div class="optionRow ${option.correct ? 'isCorrect' : ''}" data-option="${option.id}">
                 <div class="radioCircle"></div>
@@ -42,7 +50,8 @@ const Editor = (() => {
                 <button type="button" class="iconBtn correctBtn ${option.correct ? 'on' : ''}"
                         data-action="toggle-correct" title="Marcar como alternativa correcta">✓</button>
                 <button type="button" class="iconBtn deleteOptionBtn"
-                        data-action="delete-option" title="Eliminar alternativa">🗑</button>
+                        data-action="delete-option" title="${deleteTitle}"
+                        ${canDelete ? '' : 'disabled'}>🗑</button>
             </div>`).join('');
 
         return `
@@ -154,7 +163,7 @@ const Editor = (() => {
     }
 
     function deleteOption(question, row) {
-        if (!question || question.options.length <= 1) return;
+        if (!question || question.options.length <= 1) return;   // el boton ya llega deshabilitado
         const optionId = row.dataset.option;
         question.options = question.options.filter((o) => o.id !== optionId);
 
