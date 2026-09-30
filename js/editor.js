@@ -22,7 +22,13 @@ const Editor = (() => {
     /* Como se muestra la clave de una pregunta, en el pie de la tarjeta. */
     function renderKeyInfo(question) {
         if (question.type !== 'multiple') {
-            return `<span class="keyInfo">Sin puntaje · texto</span>`;
+            /* Las alternativas quedan ocultas pero no borradas. Avisarlo evita
+               la misma confusion en espejo: "donde fueron mis opciones?". */
+            const kept = question.options.length;
+            const keptNote = kept
+                ? ` · ${kept} alternativa${kept > 1 ? 's' : ''} guardada${kept > 1 ? 's' : ''}`
+                : '';
+            return `<span class="keyInfo">Sin puntaje · texto${keptNote}</span>`;
         }
 
         const count = correctCountOf(question);
@@ -34,6 +40,11 @@ const Editor = (() => {
     }
 
     function renderOptions(question) {
+        /* En una pregunta de texto las alternativas no aplican, asi que no se
+           dibujan. Siguen guardadas en el modelo y vuelven si el docente pasa
+           el tipo a multiple; renderKeyInfo lo dice en el pie de la tarjeta. */
+        if (question.type !== 'multiple') return '';
+
         /* Con una sola alternativa el boton de borrar no puede hacer nada, asi
            que se muestra deshabilitado en vez de ignorar el clic en silencio:
            un boton que no responde sin explicación parece roto. */
@@ -57,12 +68,11 @@ const Editor = (() => {
         return `
             <div class="optionContainer">
                 ${rows}
-                ${question.type === 'multiple' ? `
                 <div class="optionRow addOptionRow" data-action="add-option">
                     <div class="radioCircle addCircle"></div>
                     <input type="text" class="optionInput addOptionInput"
                            placeholder="Añadir opción" readonly>
-                </div>` : ''}
+                </div>
             </div>`;
     }
 
@@ -243,24 +253,21 @@ const Editor = (() => {
         const question = getQuestion(target.closest('.questionCard').dataset.id);
         if (!question || question.type === target.value) return;
 
-        /* Cambiar de tipo descarta las alternativas. Solo se avisa si hay algo
-           real que perder: los textos "Opción N" que pone newQuestion() son
-           relleno automatico, no trabajo del docente. */
-        const AUTO_LABEL = /^Opción \d+$/;
-        const hasContent = question.options.some((o) =>
-            o.correct || (o.text.trim() && !AUTO_LABEL.test(o.text.trim())));
+        question.type = target.value;
 
-        if (hasContent && !confirm(
-            `Cambiar a "${TYPE_LABELS[target.value]}" borra las alternativas y sus marcas de correctas. ¿Continuar?`
-        )) {
-            App.render();   // revierte el valor visual del select
-            return;
+        /* Las alternativas NO se borran al cambiar el tipo, solo se ocultan
+           mientras el tipo no sea multiple. Antes se destruian, y por eso
+           habia que pedir confirmacion: el dialogo salia siempre en las
+           preguntas con contenido real (las dos del seed) y al cancelarlo el
+           select volvia atras sin explicacion, lo que se veia como un tipo
+           que no se puede cambiar. Ahora no hay nada que perder, asi que no
+           hay dialogo, y al volver a multiple las alternativas y las claves
+           siguen intactas. */
+        if (target.value === 'multiple' && !question.options.length) {
+            question.options = [newOption('Opción 1'), newOption('Opción 2')];
         }
 
-        question.type = target.value;
-        question.options = target.value === 'multiple'
-            ? [newOption('Opción 1'), newOption('Opción 2')]
-            : [];
+        // La respuesta cambia de forma (array <-> texto), asi que se descarta.
         delete state.answers[question.id];
         state.focusTarget = null;
         App.render();

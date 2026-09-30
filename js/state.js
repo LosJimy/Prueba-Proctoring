@@ -137,6 +137,15 @@ function isEvaluable(question) {
 const correctCountOf = (question) => correctOptionsOf(question).length;
 
 function scoreQuestion(question) {
+    /* Una pregunta de texto nunca se puntua. El guard va antes de mirar las
+       alternativas porque, desde que cambiar de tipo las conserva, una de
+       texto puede guardar claves sin que deje de ser de texto. Sin esto se
+       puntuaria como multiple y el resultado no coincidiria con el conteo de
+       isEvaluable() de la pantalla de inicio. */
+    if (question.type !== 'multiple') {
+        return { pending: true, noKey: false, earned: 0, correctCount: 0, exact: false };
+    }
+
     const correct = correctOptionsOf(question);
     if (!correct.length) {
         return { pending: true, noKey: true, earned: 0, correctCount: 0, exact: false };
