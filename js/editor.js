@@ -78,13 +78,7 @@ const Editor = (() => {
     }
 
     function render() {
-        const questions = state.questions.length
-            ? state.questions.map(renderQuestion).join('')
-            : `<div class="card emptyState">
-                   <p>Este formulario todavía no tiene preguntas.</p>
-               </div>`;
-
-        return renderHeader() + questions;
+        return renderHeader() + state.questions.map(renderQuestion).join('');
     }
 
     /* ---------- eventos ---------- */

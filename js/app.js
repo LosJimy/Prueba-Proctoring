@@ -86,7 +86,7 @@ const App = (() => {
         render();
     }
 
-    return { render, init, isStudentView };
+    return { render, init };
 })();
 
 document.addEventListener('DOMContentLoaded', App.init);

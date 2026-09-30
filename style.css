@@ -206,8 +206,7 @@ body {
     color: var(--text-muted);
 }
 
-.answerInput,
-.answerTextarea {
+.answerInput {
     border-bottom: 1px dotted var(--text-muted);
 }
 
@@ -493,13 +492,6 @@ body {
 .doneText {
     font-size: 14px;
     color: var(--text-muted);
-}
-
-.emptyState {
-    text-align: center;
-    color: var(--text-muted);
-    font-size: 14px;
-    padding: 40px 24px;
 }
 
 /* ---------- menu flotante ---------- */

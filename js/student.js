@@ -80,9 +80,6 @@ const Student = (() => {
     }
 
     function render() {
-        if (!state.questions.length) {
-            return `${renderHeader()}<div class="card emptyState"><p>No hay preguntas para responder.</p></div>`;
-        }
         return renderHeader() + renderProgress() + renderQuestion(questionsOfPage()[0], state.page * PAGE_SIZE) + renderNav();
     }
 
@@ -210,5 +207,5 @@ const Student = (() => {
         return false;
     }
 
-    return { render: renderCurrent, onClick, onInput, validatePage, validateAll };
+    return { render: renderCurrent, onClick, onInput };
 })();
