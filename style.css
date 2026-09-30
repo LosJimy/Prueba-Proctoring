@@ -1,58 +1,12 @@
-.studentMode .addOptionRow,
-.studentMode .deleteOptionBtn,
-.studentMode .questionTypeSelect,
-.studentMode #addQuestionBtn {
-    display: none !important;
-}
-
-.studentMode .titleInput,
-.studentMode .descriptionInput,
-.studentMode .questionTitleInput {
-    border-bottom: none !important;
-    background-color: transparent !important;
-    pointer-events: none;
-}
-
-.studentMode .optionInput {
-    pointer-events: none;
-    border-bottom: none;
-}
-
-.studentMode .optionRow {
-    cursor: pointer;
-    padding: 5px;
-    border-radius: 4px;
-}
-
-.studentMode .optionRow:hover {
-    background-color: #f8f9fa;
-}
-
-.studentMode .radioCircle.selected {
-    border-color: var(--primary-color);
-    position: relative;
-}
-
-.studentMode .radioCircle.selected::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-505, -50%);
-    width: 10px;
-    height: 10px;
-    background-color: var(--primary-color);
-    border-radius: 50px;
-}
-
 :root {
-
     --bg-color: #f0ebf8;
     --card-bg: #ffffff;
     --primary-color: #673ab7;
+    --primary-light: #e8e3f4;
     --text-main: #202124;
     --text-muted: #70757a;
     --border-color: #dadce0;
+    --error-color: #d93025;
 }
 
 * {
@@ -66,6 +20,7 @@ body {
     background-color: var(--bg-color);
     color: var(--text-main);
     padding: 20px;
+    padding-bottom: 120px;
 }
 
 .formContainer {
@@ -85,6 +40,8 @@ body {
     position: relative;
     overflow: hidden;
 }
+
+/* ---------- cabecera ---------- */
 
 .formHeader {
     border-top: none;
@@ -132,12 +89,39 @@ body {
     border-bottom: 2px solid var(--primary-color);
 }
 
+.formTitle {
+    font-size: 32px;
+    font-weight: 500;
+    margin-bottom: 8px;
+}
+
+.formDescription {
+    font-size: 14px;
+    color: var(--text-muted);
+}
+
+/* ---------- preguntas ---------- */
+
 .questionHeader {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 20px;
-    gap: 20px;
+    gap: 15px;
+}
+
+.questionNumber {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background-color: var(--primary-color);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .questionTitleInput {
@@ -155,10 +139,18 @@ body {
 
 .questionTitleInput:focus {
     border-bottom: 2px solid var(--primary-color);
-    background-color: #e8e3f4;
+    background-color: var(--primary-light);
+}
+
+.questionTitleStatic {
+    flex-grow: 1;
+    font-size: 17px;
+    font-weight: 500;
+    line-height: 1.4;
 }
 
 .questionTypeSelect {
+    flex-shrink: 0;
     padding: 12px;
     border: 1px solid var(--border-color);
     border-radius: 4px;
@@ -183,6 +175,7 @@ body {
 }
 
 .radioCircle {
+    flex-shrink: 0;
     width: 20px;
     height: 20px;
     border: 2px solid var(--border-color);
@@ -201,6 +194,31 @@ body {
 
 .optionInput:focus {
     border-bottom: 1px solid var(--border-color);
+}
+
+.optionText {
+    flex-grow: 1;
+    font-size: 15px;
+    line-height: 1.5;
+}
+
+.placeholderText {
+    color: var(--text-muted);
+}
+
+.answerInput,
+.answerTextarea {
+    border-bottom: 1px dotted var(--text-muted);
+}
+
+.answerTextarea {
+    min-height: 90px;
+    resize: vertical;
+    line-height: 1.5;
+    border-style: solid;
+    border-color: var(--border-color);
+    border-radius: 4px;
+    padding: 10px;
 }
 
 .addCircle {
@@ -225,23 +243,266 @@ body {
     cursor: pointer;
 }
 
-.deleteOptionBtn {
-    color: var(--text-muted);
-    font-size: 18px;
+.addOptionRow {
     cursor: pointer;
-    padding: 5px;
-    visibility: hidden;
 }
 
-.optionRow:hover .deleteOptionBtn {
-    visibility: visible;
+.addOptionRow:hover .optionInput {
+    border-bottom: 1px solid var(--text-muted);
 }
 
-.deleteOptionBtn:hover {
-    color: #333;
+/* ---------- acciones de pregunta ---------- */
+
+.questionFooter {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 20px;
+    padding-top: 14px;
+    border-top: 1px solid #f1f3f4;
+    opacity: 0.6ya re;
+    transition: opacity 0.2s ease;
+}
+
+.questionCard:hover .questionFooter {
+    opacity: 1;
+}
+
+.requiredBadge {
+    font-size: 12px;
+    color: var(--text-muted);
     background-color: #f1f3f4;
-    border-radius: 50%;
+    padding: 4px 10px;
+    border-radius: 20px;
+    white-space: nowrap;
 }
+
+.questionActions {
+    display: flex;
+    gap: 4px;
+}
+
+.iconBtn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--text-muted);
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s, color 0.2s;
+}
+
+.iconBtn:hover:not(:disabled) {
+    background-color: #f1f3f4;
+    color: var(--text-main);
+}
+
+.iconBtn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+.dragHandle {
+    position: absolute;
+    top: 10px;
+    right: 14px;
+    color: var(--border-color);
+    font-size: 18px;
+    cursor: grab;
+    user-select: none;
+    line-height: 1;
+}
+
+.dragHandle:active {
+    cursor: grabbing;
+}
+
+.questionCard.dragging {
+    opacity: 0.4;
+}
+
+.questionCard.dragOver {
+    border-top: 3px solid var(--primary-color);
+}
+
+/* ---------- navegacion ---------- */
+
+.progressWrapper {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 4px 6px;
+}
+
+.progressBar {
+    flex-grow: 1;
+    height: 6px;
+    background-color: #e0d5f0;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.progressFill {
+    height: 100%;
+    background-color: var(--primary-color);
+    border-radius: 10px;
+    transition: width 0.3s ease;
+}
+
+.progressText {
+    font-size: 13px;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+.navButtons {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 20px;
+}
+
+.navButtons.center {
+    justify-content: center;
+}
+
+.btn {
+    font-family: 'Roboto', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    padding: 12px 24px;
+    border-radius: 4px;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: background-color 0.2s, color 0.2s;
+}
+
+.btnPrimary {
+    background-color: var(--primary-color);
+    color: #fff;
+}
+
+.btnPrimary:hover {
+    background-color: #56309f;
+}
+
+.btnGhost {
+    background-color: transparent;
+    color: var(--primary-color);
+}
+
+.btnGhost:hover {
+    background-color: var(--primary-light);
+}
+
+.btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+/* ---------- validacion ---------- */
+
+.questionCard.invalid {
+    border-color: var(--error-color);
+    box-shadow: 0 0 0 1px var(--error-color);
+}
+
+.questionCard.invalid .requiredBadge {
+    background-color: #fce8e6;
+    color: var(--error-color);
+}
+
+.errorMessage {
+    margin-top: 14px;
+    font-size: 13px;
+    color: var(--error-color);
+}
+
+/* ---------- revision ---------- */
+
+.reviewTitle {
+    font-size: 20px;
+    font-weight: 500;
+    margin-bottom: 20px;
+}
+
+.reviewRow {
+    display: flex;
+    gap: 14px;
+    padding: 14px 0;
+    border-bottom: 1px solid #f1f3f4;
+}
+
+.reviewRow:last-of-type {
+    border-bottom: none;
+}
+
+.reviewNumber {
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background-color: var(--primary-light);
+    color: var(--primary-color);
+    font-size: 12px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.reviewBody {
+    flex-grow: 1;
+}
+
+.reviewQuestion {
+    font-size: 15px;
+    margin-bottom: 4px;
+}
+
+.reviewAnswer {
+    font-size: 14px;
+    color: var(--primary-color);
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.doneCard {
+    text-align: center;
+    padding: 40px 24px;
+}
+
+.doneIcon {
+    width: 64px;
+    height: 64px;
+    margin: 0 auto 20px;
+    border-radius: 50%;
+    background-color: #e6f4ea;
+    color: #1e8e3e;
+    font-size: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.doneText {
+    font-size: 14px;
+    color: var(--text-muted);
+}
+
+.emptyState {
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 14px;
+    padding: 40px 24px;
+}
+
+/* ---------- menu flotante ---------- */
 
 .floatingMenu {
     position: fixed;
@@ -254,9 +515,11 @@ body {
     padding: 8px;
     display: flex;
     flex-direction: column;
+    gap: 4px;
 }
 
-#addQuestionBtn {
+#addQuestionBtn,
+#previewBtn {
     background-color: transparent;
     border: none;
     border-radius: 50%;
@@ -269,11 +532,73 @@ body {
     transition: background-color 0.2s;
 }
 
-#addQuestionBtn:hover {
+#addQuestionBtn:hover,
+#previewBtn:hover {
     background-color: #f1f3f4;
 }
 
-.plus-icon {
+.plusIcon {
     font-size: 24px;
     color: var(--text-muted);
+    line-height: 1;
+}
+
+.menuIcon {
+    font-size: 18px;
+    line-height: 1;
+}
+
+/* ---------- modo estudiante ---------- */
+
+.studentMode .addOptionRow,
+.studentMode .deleteOptionBtn,
+.studentMode .questionTypeSelect,
+.studentMode .questionFooter,
+.studentMode .dragHandle,
+.studentMode #addQuestionBtn {
+    display: none !important;
+}
+
+.studentMode .questionTitleInput,
+.studentMode .titleInput,
+.studentMode .descriptionInput {
+    display: none !important;
+}
+
+/* Los optionInput de respuesta (corto/parrafo) sí deben ser editables. */
+.studentMode .optionRow:not(.selectable) .optionInput {
+    pointer-events: auto;
+}
+
+.studentMode .optionRow.selectable {
+    cursor: pointer;
+    padding: 8px 10px;
+    margin: 0 -10px;
+    border-radius: 4px;
+    transition: background-color 0.15s;
+}
+
+.studentMode .optionRow.selectable:hover {
+    background-color: #f8f9fa;
+}
+
+.studentMode .optionRow.selectable.selected {
+    background-color: var(--primary-light);
+}
+
+.studentMode .radioCircle.selected {
+    border-color: var(--primary-color);
+    position: relative;
+}
+
+.studentMode .radioCircle.selected::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 10px;
+    height: 10px;
+    background-color: var(--primary-color);
+    border-radius: 50%;
 }
